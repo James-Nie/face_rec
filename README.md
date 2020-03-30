@@ -13,3 +13,10 @@
 由于浏览器调用摄像头需要在https协议或127.0.0.1或localhost下才有权限，如果想用其他电脑访问开发环境，使用以下方法
 chrome 启动快捷键后加上以下后缀：
 -no-sandbox --unsafely-treat-insecure-origin-as-secure="http://ip:8000"
+
+架构图
+<img src="public/架构图.PNG">
+
+时序图
+
+<img src="public/时序图.PNG">
