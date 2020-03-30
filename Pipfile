@@ -1,0 +1,18 @@
+[[source]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+verify_ssl = false
+name = "pypi"
+
+[packages]
+sanic = "*"
+face_recognition = "*"
+pillow = "*"
+
+[dev-packages]
+httptools = "*"
+cmake = "*"
+dlib = "*"
+
+[scripts]
+app = "python -m app.py"
+test = "python recognition.py"

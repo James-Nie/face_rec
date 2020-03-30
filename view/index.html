@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>本地调用摄像头</title>
+	<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+</head>
+
+<body>
+
+	<div class="show-window">
+		<video autoplay></video>
+		<span class="location"></span>
+		<canvas style="display:none;" width="320" height="180"></canvas>
+		<img src></img>
+	</div>
+
+	<div class="save-content">
+		<button class="capture">抓拍</button>
+		<input class="name"></input>
+	</div>
+
+	<div id="result">
+		<span class="name">名字：</span>
+		<span class="match">相似度：</span>
+		<span class="msg"></span>
+	</div>
+
+	<script>
+		$(document).ready(function () {
+			var video = document.querySelector('video'),
+				canvas = document.querySelector('canvas'),
+				resultDom = document.querySelector('#result'),
+				showWindow = document.querySelector('.show-window'),
+				locatDom = $('.show-window .location');
+
+			var ctx = canvas.getContext('2d');
+			var localMediaStream = null, ws, uploadImage;
+
+			var showWidth = document.querySelector('video').clientWidth,
+				showHeight = document.querySelector('video').clientHeight;
+
+			navigator.getUserMedia = navigator.getUserMedia ||
+				navigator.webkitGetUserMedia ||
+				navigator.mozGetUserMedia;
+
+			if (navigator.getUserMedia) {
+				navigator.getUserMedia({ audio: true, video: { width: 320, height: 180 } },
+					function (stream) {
+						localMediaStream = stream;
+						try {
+							video.srcObject = stream;
+						} catch (error) {
+							video.src = window.URL.createObjectURL(stream);
+						}
+						video.onloadedmetadata = function (e) {
+							video.play();
+						};
+					},
+					function (err) {
+						console.log("The following error occurred: " + err.name);
+					}
+				);
+			} else {
+				console.log("getUserMedia not supported");
+			}
+
+			function check_face() {
+				if (localMediaStream) {
+					ctx.drawImage(video, 0, 0);
+				}
+				var imgs = canvas.toDataURL('image/png');
+				var formData = {
+					type: 'check_face',
+					data: imgs
+				}
+				ws.send(JSON.stringify(formData))
+			}
+
+			function handleEvent() {
+				// 抓拍事件
+				console.log($('.capture'))
+				$('.capture').click(function () {
+					if (uploadImage) {
+						var name = $('.save-content .name').val();
+						if (!name) {
+							alert('请填写姓名！');
+							return;
+						}
+						$.ajax({
+							type: 'POST',
+							url: "/api/save-face",
+							dataType: "json",
+							contentType: 'application/json',
+							data: JSON.stringify({
+								name: name.trim(),
+								image: uploadImage
+							}),
+							success: function (res) {
+								if (res && res.type == 0) {
+									uploadImage = null;
+									alert('建模成功！')
+								} else {
+									uploadImage = null;
+									alert(res.msg)
+								}
+								$('.capture').text('抓拍')
+							}
+						})
+					} else {
+						$('.show-window img').attr('src', canvas.toDataURL('image/png'));
+						uploadImage = canvas.toDataURL('image/png');
+						$('.capture').text('上传建模')
+					}
+				});
+			}
+
+			function initWebSocket() {
+				if ("WebSocket" in window) {
+					// 打开一个 web socket
+					ws = new WebSocket("ws://127.0.0.1:8000/socket/check-face");
+
+					ws.onopen = function () {
+						// Web Socket 已连接上，使用 send() 方法发送数据
+						ws.send(JSON.stringify({
+							type: 'connect',
+							data: '来自客户端的问候，可以传数据了'
+						}))
+						check_face()
+					};
+
+					ws.onmessage = function (evt) {
+						var rece_data = JSON.parse(evt.data);
+						if (rece_data.type === 'data') {
+							if (rece_data.data) {
+								resultDom.querySelector('.name').innerHTML = `名字：${rece_data.data.name}`
+								resultDom.querySelector('.match').innerHTML = `相似度：${parseFloat(1 - rece_data.data.match)}`
+								resultDom.querySelector('.msg').innerHTML = ''
+
+								locatDom.css({
+									width: rece_data.data.location.width * showWidth,
+									height: rece_data.data.location.height * showHeight,
+									top: rece_data.data.location.top * showHeight,
+									left: rece_data.data.location.left * showWidth
+								})
+							} else {
+								resultDom.querySelector('.name').innerHTML = '';
+								resultDom.querySelector('.match').innerHTML = '';
+								resultDom.querySelector('.msg').innerHTML = rece_data.msg;
+
+								locatDom.css({
+									width: 0,
+									height: 0,
+									top: 0,
+									left: 0
+								})
+							}
+							check_face()
+						}
+					};
+
+					ws.onclose = function () {
+						// 关闭 websocket
+						alert("连接已关闭...");
+					};
+				} else {
+					// 浏览器不支持 WebSocket
+					alert("您的浏览器不支持 WebSocket!");
+				}
+			}
+
+			handleEvent();
+			initWebSocket();
+		})
+
+	</script>
+
+
+</body>
+
+<style>
+	.show-window {
+		height: 180px;
+		position: relative;
+		display: inline-block;
+	}
+
+	.show-window img {
+		width: 320px;
+		height: 180px;
+	}
+
+	.show-window .location {
+		position: absolute;
+		display: block;
+		top: 0;
+		left: 0;
+		width: 0;
+		height: 0;
+		border: 1px solid red;
+	}
+</style>
+
+</html>
