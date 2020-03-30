@@ -1,6 +1,4 @@
-# face_rec
-
-安装 face-recognition 步骤
+## 安装 face-recognition
 首先说明，我的系统是win10，python版本是python3.7
 
 需要事先下载一下3个包并安装：
